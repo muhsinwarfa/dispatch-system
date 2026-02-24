@@ -144,6 +144,16 @@ function TripCard({
   const isPending = trip.status === 'Pending';
   const advanceCfg = ADVANCE_CONFIG[trip.status];
   const [advancing, setAdvancing] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function handleCopyLink(e: React.MouseEvent) {
+    e.stopPropagation();
+    const url = `${window.location.origin}/t/${trip.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   async function handleAdvance(e: React.MouseEvent) {
     e.stopPropagation(); // don't bubble up to the card's onClick
@@ -211,7 +221,31 @@ function TripCard({
           <span>{formatPickupTime(trip.pickup_time)}</span>
         </div>
 
-        {isPending ? (
+        <div className="flex items-center gap-1.5">
+          {/* Copy tracking link */}
+          <button
+            onClick={handleCopyLink}
+            title="Copy customer tracking link"
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors px-1.5 py-0.5 rounded hover:bg-gray-100"
+          >
+            {copied ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-green-600 font-medium">Copied!</span>
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                <span>Copy Link</span>
+              </>
+            )}
+          </button>
+
+          {isPending ? (
           <span className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -228,6 +262,7 @@ function TripCard({
             <span className="truncate">{trip.driver.full_name}</span>
           </div>
         ) : null}
+        </div>{/* end right-side flex group */}
       </div>
 
       {/* Advance status button — Confirmed and In Progress only */}
