@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { TripStatus, TripWithRelations, Driver } from '@/types/database';
 import NewTripModal from './NewTripModal';
@@ -545,6 +547,7 @@ function MatchmakingModal({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const pathname = usePathname();
   const [trips, setTrips] = useState<TripWithRelations[]>([]);
   const [drivers, setDrivers] = useState<AvailableDriver[]>([]);
   const [loading, setLoading] = useState(true);
@@ -683,6 +686,28 @@ export default function DashboardPage() {
           <h1 className="text-xl font-bold text-gray-900 tracking-tight">Shaana Transporters</h1>
           <p className="text-sm text-gray-500">Dispatcher Dashboard</p>
         </div>
+        <nav className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+          <Link
+            href="/dashboard"
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+              pathname === '/dashboard'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Dispatch Board
+          </Link>
+          <Link
+            href="/dashboard/reconciliation"
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+              pathname === '/dashboard/reconciliation'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Reconciliation
+          </Link>
+        </nav>
         <div className="flex items-center gap-6">
           <div className="text-right">
             <p className="text-sm font-medium text-gray-700">{today}</p>

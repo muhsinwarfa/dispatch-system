@@ -46,6 +46,7 @@ export interface Trip {
   customer_verified_amount: number | null;
   driver_verified_amount: number | null;
   commission_paid: boolean;
+  commission_settled: boolean;
   created_at: string;
   updated_at: string;
 }
