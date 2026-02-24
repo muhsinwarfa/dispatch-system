@@ -106,10 +106,53 @@ function SkeletonColumn({ status }: { status: TripStatus }) {
   );
 }
 
+// ─── Advance button config ────────────────────────────────────────────────────
+
+const ADVANCE_CONFIG: Partial<Record<TripStatus, {
+  label: string;
+  next: TripStatus;
+  cls: string;
+  activeCls: string;
+}>> = {
+  Confirmed: {
+    label: 'Mark In Progress',
+    next: 'In Progress',
+    cls: 'border border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300',
+    activeCls: 'border border-indigo-300 bg-indigo-50 text-indigo-600',
+  },
+  'In Progress': {
+    label: 'Mark Completed',
+    next: 'Completed',
+    cls: 'border border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300',
+    activeCls: 'border border-green-300 bg-green-50 text-green-600',
+  },
+};
+
 // ─── TripCard ─────────────────────────────────────────────────────────────────
 
-function TripCard({ trip, onClick }: { trip: TripWithRelations; onClick?: () => void }) {
+function TripCard({
+  trip,
+  onClick,
+  onAdvance,
+}: {
+  trip: TripWithRelations;
+  onClick?: () => void;
+  onAdvance?: () => Promise<void>;
+}) {
   const isPending = trip.status === 'Pending';
+  const advanceCfg = ADVANCE_CONFIG[trip.status];
+  const [advancing, setAdvancing] = useState(false);
+
+  async function handleAdvance(e: React.MouseEvent) {
+    e.stopPropagation(); // don't bubble up to the card's onClick
+    if (!onAdvance || advancing) return;
+    setAdvancing(true);
+    try {
+      await onAdvance();
+    } finally {
+      setAdvancing(false);
+    }
+  }
 
   return (
     <div
@@ -184,6 +227,34 @@ function TripCard({ trip, onClick }: { trip: TripWithRelations; onClick?: () => 
           </div>
         ) : null}
       </div>
+
+      {/* Advance status button — Confirmed and In Progress only */}
+      {advanceCfg && onAdvance && (
+        <button
+          onClick={handleAdvance}
+          disabled={advancing}
+          className={`w-full mt-1 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5
+            ${advancing ? advanceCfg.activeCls : advanceCfg.cls}
+            disabled:opacity-60`}
+        >
+          {advancing ? (
+            <>
+              <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+              Updating…
+            </>
+          ) : (
+            <>
+              {advanceCfg.label}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 }
@@ -191,11 +262,12 @@ function TripCard({ trip, onClick }: { trip: TripWithRelations; onClick?: () => 
 // ─── KanbanColumn ─────────────────────────────────────────────────────────────
 
 function KanbanColumn({
-  status, trips, onCardClick,
+  status, trips, onCardClick, onAdvance,
 }: {
   status: TripStatus;
   trips: TripWithRelations[];
   onCardClick?: (trip: TripWithRelations) => void;
+  onAdvance?: (trip: TripWithRelations) => Promise<void>;
 }) {
   const cfg = STATUS_CONFIG[status];
   return (
@@ -215,6 +287,7 @@ function KanbanColumn({
               key={trip.id}
               trip={trip}
               onClick={onCardClick ? () => onCardClick(trip) : undefined}
+              onAdvance={onAdvance ? () => onAdvance(trip) : undefined}
             />
           ))
         )}
@@ -567,6 +640,26 @@ export default function DashboardPage() {
     setSelectedTrip(null);
   }
 
+  async function handleAdvanceStatus(trip: TripWithRelations) {
+    const cfg = ADVANCE_CONFIG[trip.status];
+    if (!cfg) return;
+
+    const { error } = await supabase
+      .from('trips')
+      .update({ status: cfg.next })
+      .eq('id', trip.id);
+
+    if (error) throw new Error(error.message);
+
+    setTrips((prev) =>
+      prev.map((t) =>
+        t.id === trip.id
+          ? { ...t, status: cfg.next, updated_at: new Date().toISOString() }
+          : t
+      )
+    );
+  }
+
   const tripsByStatus = STATUSES.reduce<Record<TripStatus, TripWithRelations[]>>(
     (acc, status) => {
       acc[status] = trips.filter((t) => t.status === status);
@@ -634,6 +727,11 @@ export default function DashboardPage() {
                   status={status}
                   trips={tripsByStatus[status]}
                   onCardClick={status === 'Pending' ? setSelectedTrip : undefined}
+                  onAdvance={
+                    status === 'Confirmed' || status === 'In Progress'
+                      ? handleAdvanceStatus
+                      : undefined
+                  }
                 />
               ))}
         </div>
