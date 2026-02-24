@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { TripStatus, TripWithRelations, Driver } from '@/types/database';
+import NewTripModal from './NewTripModal';
 
 // ─── Extended Driver Type (with corridor preferences from driver_corridors) ───
 
@@ -476,6 +477,22 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedTrip, setSelectedTrip] = useState<TripWithRelations | null>(null);
+  const [showNewTripModal, setShowNewTripModal] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showToast(message: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(message);
+    toastTimer.current = setTimeout(() => setToast(null), 3500);
+  }
+
+  function handleTripCreated(newTrip: TripWithRelations) {
+    // Prepend so it appears at the top of the Pending column immediately
+    setTrips((prev) => [newTrip, ...prev]);
+    setShowNewTripModal(false);
+    showToast('Trip logged successfully');
+  }
 
   useEffect(() => {
     async function fetchData() {
@@ -573,11 +590,23 @@ export default function DashboardPage() {
           <h1 className="text-xl font-bold text-gray-900 tracking-tight">Shaana Transporters</h1>
           <p className="text-sm text-gray-500">Dispatcher Dashboard</p>
         </div>
-        <div className="text-right">
-          <p className="text-sm font-medium text-gray-700">{today}</p>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {loading ? 'Loading…' : `${trips.length} trip${trips.length !== 1 ? 's' : ''} on board`}
-          </p>
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <p className="text-sm font-medium text-gray-700">{today}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {loading ? 'Loading…' : `${trips.length} trip${trips.length !== 1 ? 's' : ''} on board`}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowNewTripModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow-md transition-all active:scale-95 hover:brightness-110"
+            style={{ backgroundColor: '#25D366' }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Create New Trip
+          </button>
         </div>
       </header>
 
@@ -618,6 +647,31 @@ export default function DashboardPage() {
           onConfirm={handleConfirmAssignment}
           onClose={() => setSelectedTrip(null)}
         />
+      )}
+
+      {/* New Trip Modal */}
+      {showNewTripModal && (
+        <NewTripModal
+          onTripCreated={handleTripCreated}
+          onClose={() => setShowNewTripModal(false)}
+        />
+      )}
+
+      {/* Success Toast */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-[60] flex items-center gap-3 bg-gray-900 border border-white/10 text-white px-5 py-3.5 rounded-xl shadow-2xl">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#25D366]">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </span>
+          <p className="text-sm font-medium">{toast}</p>
+          <button onClick={() => setToast(null)} className="ml-1 text-gray-400 hover:text-white transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       )}
     </div>
   );
